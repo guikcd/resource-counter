@@ -1,6 +1,7 @@
 import click
 import boto3
 import sys
+import json
 resource_counts = {}
 resource_totals = {}
 
@@ -73,7 +74,7 @@ def controller(access, secret, profile):
 
     # show results
     click.echo('Resources by region')
-    click.echo(resource_counts)
+    click.echo(json.dumps(resource_counts))
     click.echo(' ')
     click.echo('Resource totals across all regions')
     for key, value in sorted(resource_totals.items()):
