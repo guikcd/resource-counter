@@ -1,6 +1,7 @@
 import click
 import boto3
 import sys
+import botocore
 resource_counts = {}
 resource_totals = {}
 
@@ -70,6 +71,8 @@ def controller(access, secret, profile):
     kms_counter()
     dynamo_counter()
     rds_counter()
+    elasticbeanstalk_counter()
+    elasticbeanstalkenvs_counter()
 
     # show results
     click.echo('Resources by region')
@@ -425,6 +428,40 @@ def rds_counter():
         total_dbinstances += dbinstances_counter
         resource_counts[region]['rds instances'] = dbinstances_counter
     resource_totals['RDS Instances'] = total_dbinstances
+
+def elasticbeanstalk_counter():
+    region_list = session.get_available_regions('elasticbeanstalk')
+
+    total_elasticbeanstalkapp = 0
+
+    for region in region_list:
+        print(region)
+        elasticbeanstalk = session.client('elasticbeanstalk', region_name=region)
+        try:
+           elasticbeanstalk_iterator = elasticbeanstalk.describe_applications()
+           elasticbeanstalkapp_counter = len(elasticbeanstalk_iterator['Applications'])
+           total_elasticbeanstalkapp += elasticbeanstalkapp_counter
+           resource_counts[region]['elasticbeanstalk_applications'] = elasticbeanstalkapp_counter
+        except botocore.exceptions.ClientError:
+           print("botocore.exceptions.ClientError")
+    resource_totals['Elasticbeanstalk Applications'] = total_elasticbeanstalkapp
+
+def elasticbeanstalkenvs_counter():
+    region_list = session.get_available_regions('elasticbeanstalk')
+
+    total_elasticbeanstalkenv = 0
+
+    for region in region_list:
+        print(region)
+        elasticbeanstalk = session.client('elasticbeanstalk', region_name=region)
+        try:
+           elasticbeanstalk_iterator = elasticbeanstalk.describe_environments()
+           elasticbeanstalkenv_counter = len(elasticbeanstalk_iterator['Environments'])
+           total_elasticbeanstalkenv += elasticbeanstalkenv_counter
+           resource_counts[region]['elasticbeanstalk_environments'] = elasticbeanstalkenv_counter
+        except botocore.exceptions.ClientError:
+           print("botocore.exceptions.ClientError")
+    resource_totals['Elasticbeanstalk Environnments'] = total_elasticbeanstalkenv
 
 if __name__ == "__main__":
     controller()
