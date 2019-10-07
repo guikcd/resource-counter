@@ -1,6 +1,7 @@
 import click
 import boto3
 import sys
+import botocore
 resource_counts = {}
 resource_totals = {}
 
@@ -110,20 +111,22 @@ def ec2_counter(account_id):
         ec2client = session.client('ec2', region_name=region)
 
         # build the collections to count
-        instance_iterator = ec2.instances.all()
-        volume_iterator = ec2.volumes.all()
-        security_group_iterator = ec2.security_groups.all()
-        snapshot_iterator = ec2.snapshots.filter(OwnerIds=[account_id])
-        image_iterator = ec2.images.filter(Owners=[account_id])
-        vpc_iterator = ec2.vpcs.all()
-        subnet_iterator = ec2.subnets.all()
-        vpc_peering_connection_iterator = ec2.vpc_peering_connections.all()
-        network_acl_iterator = ec2.network_acls.all()
-        vpc_address_iterator = ec2.vpc_addresses.all()
-        nat_gateways = ec2client.get_paginator('describe_nat_gateways')
-        nat_gateway_iterator = nat_gateways.paginate()
-        endpoints = ec2client.describe_vpc_endpoints()
-
+        try:
+            instance_iterator = ec2.instances.all()
+            volume_iterator = ec2.volumes.all()
+            security_group_iterator = ec2.security_groups.all()
+            snapshot_iterator = ec2.snapshots.filter(OwnerIds=[account_id])
+            image_iterator = ec2.images.filter(Owners=[account_id])
+            vpc_iterator = ec2.vpcs.all()
+            subnet_iterator = ec2.subnets.all()
+            vpc_peering_connection_iterator = ec2.vpc_peering_connections.all()
+            network_acl_iterator = ec2.network_acls.all()
+            vpc_address_iterator = ec2.vpc_addresses.all()
+            nat_gateways = ec2client.get_paginator('describe_nat_gateways')
+            nat_gateway_iterator = nat_gateways.paginate()
+            endpoints = ec2client.describe_vpc_endpoints()
+        except botocore.exceptions.ClientError:
+            continue
 
         # count resources
         instance_counter = len(list(instance_iterator))
@@ -219,6 +222,7 @@ def autoscaling_counter():
         # pull data using paginators
         autoscaling = client.get_paginator('describe_auto_scaling_groups')
         configurations = client.get_paginator('describe_launch_configurations')
+        
         autoscale_iterator = autoscaling.paginate()
         configurations_iterator = configurations.paginate()
 
@@ -226,10 +230,13 @@ def autoscaling_counter():
         autoscale_count = 0
         configuration_count = 0
 
-        for autoscale in autoscale_iterator:
-            autoscale_count += len(autoscale['AutoScalingGroups'])
-        for configuration in configurations_iterator:
-            configuration_count += len(configuration['LaunchConfigurations'])
+        try:
+            for autoscale in autoscale_iterator:
+                autoscale_count += len(autoscale['AutoScalingGroups'])
+            for configuration in configurations_iterator:
+                configuration_count += len(configuration['LaunchConfigurations'])
+        except botocore.exceptions.ClientError:
+            continue
 
         total_autoscaling_groups += autoscale_count
         total_launch_configurations += configuration_count
@@ -262,8 +269,11 @@ def balancer_counter():
         #initialize region count
         elb_counter = 0
 
-        for balancer in elb_iterator:
-            elb_counter += len(balancer['LoadBalancerDescriptions'])
+        try:
+            for balancer in elb_iterator:
+                elb_counter += len(balancer['LoadBalancerDescriptions'])
+        except botocore.exceptions.ClientError:
+            continue
 
         elb_total += elb_counter
         resource_counts[region]['classic load balancers'] = elb_counter
@@ -279,8 +289,11 @@ def balancer_counter():
         #initialize region count
         elb_counter = 0
 
-        for balancer in elb_iterator:
-            elb_counter += len(balancer['LoadBalancers'])
+        try:
+            for balancer in elb_iterator:
+                elb_counter += len(balancer['LoadBalancers'])
+        except botocore.exceptions.ClientError:
+            continue
 
         elbv2_total += elb_counter
         resource_counts[region]['application and network load balancers'] = elb_counter
@@ -307,10 +320,13 @@ def lambda_counter():
         function_counter = 0
         function_paginator = aws_lambda.get_paginator('list_functions')
         function_iterator = function_paginator.paginate()
-        for function in function_iterator:
-            function_counter += len(function['Functions'])
-        total_functions += function_counter
-        resource_counts[region]['lambdas'] = function_counter
+        try:
+            for function in function_iterator:
+                function_counter += len(function['Functions'])
+            total_functions += function_counter
+            resource_counts[region]['lambdas'] = function_counter
+        except botocore.exceptions.ClientError:
+            continue
     resource_totals['Lambda Functions'] = total_functions
 
 def glacier_counter():
@@ -320,10 +336,13 @@ def glacier_counter():
 
     for region in region_list:
         glacier = session.resource('glacier', region_name=region)
-        vault_iterator = glacier.vaults.all()
-        vault_counter = len(list(vault_iterator))
-        total_vaults += vault_counter
-        resource_counts[region]['glacier vaults'] = vault_counter
+        try:
+            vault_iterator = glacier.vaults.all()
+            vault_counter = len(list(vault_iterator))
+            total_vaults += vault_counter
+            resource_counts[region]['glacier vaults'] = vault_counter
+        except botocore.exceptions.ClientError:
+            continue
     resource_totals['Glacier Vaults'] = total_vaults
 
 def cloudwatch_rules_counter():
@@ -333,10 +352,13 @@ def cloudwatch_rules_counter():
 
     for region in region_list:
         cloudwatch = session.client('events', region_name=region)
-        rules = cloudwatch.list_rules()
-        events_counter = len(rules['Rules'])
-        total_events += events_counter
-        resource_counts[region]['cloudwatch rules'] = events_counter
+        try:
+            rules = cloudwatch.list_rules()
+            events_counter = len(rules['Rules'])
+            total_events += events_counter
+            resource_counts[region]['cloudwatch rules'] = events_counter
+        except botocore.exceptions.ClientError:
+            continue
     resource_totals['Cloudwatch Rules'] = total_events
 
 def config_counter():
@@ -348,11 +370,14 @@ def config_counter():
         config = session.client('config', region_name=region)
         config_rules_counter = 0
         config_rules_paginator = config.get_paginator('describe_config_rules')
-        config_rules_iterator = config_rules_paginator.paginate()
-        for rule in config_rules_iterator:
-            config_rules_counter += len(rule['ConfigRules'])
-        total_config_rules += config_rules_counter
-        resource_counts[region]['config rules'] = config_rules_counter
+        try:
+            config_rules_iterator = config_rules_paginator.paginate()
+            for rule in config_rules_iterator:
+                config_rules_counter += len(rule['ConfigRules'])
+            total_config_rules += config_rules_counter
+            resource_counts[region]['config rules'] = config_rules_counter
+        except botocore.exceptions.ClientError:
+            continue
     resource_totals['Config Rules'] = total_config_rules
 
 def cloudtrail_counter():
@@ -362,10 +387,13 @@ def cloudtrail_counter():
 
     for region in region_list:
         cloudtrail = session.client('cloudtrail', region_name=region)
-        trails = cloudtrail.describe_trails()
-        trails_counter = len(trails['trailList'])
-        total_trails += trails_counter
-        resource_counts[region]['cloudtrail trails'] = trails_counter
+        try:
+            trails = cloudtrail.describe_trails()
+            trails_counter = len(trails['trailList'])
+            total_trails += trails_counter
+            resource_counts[region]['cloudtrail trails'] = trails_counter
+        except botocore.exceptions.ClientError:
+            continue
     resource_totals['CloudTrail Trails'] = total_trails
 
 def sns_counter():
@@ -375,10 +403,13 @@ def sns_counter():
 
     for region in region_list:
         sns = session.resource('sns', region_name=region)
-        topic_iterator = sns.topics.all()
-        topic_counter = len(list(topic_iterator))
-        total_topics += topic_counter
-        resource_counts[region]['sns topics'] = topic_counter
+        try:
+            topic_iterator = sns.topics.all()
+            topic_counter = len(list(topic_iterator))
+            total_topics += topic_counter
+            resource_counts[region]['sns topics'] = topic_counter
+        except botocore.exceptions.ClientError:
+            continue
     resource_totals['SNS Topics'] = total_topics
 
 def kms_counter():
@@ -390,11 +421,14 @@ def kms_counter():
         kms = session.client('kms', region_name=region)
         keys_counter = 0
         kms_paginator = kms.get_paginator('list_keys')
-        kms_iterator = kms_paginator.paginate()
-        for key in kms_iterator:
-            keys_counter += len(key['Keys'])
-        total_keys += keys_counter
-        resource_counts[region]['kms keys'] = keys_counter
+        try:
+            kms_iterator = kms_paginator.paginate()
+            for key in kms_iterator:
+                keys_counter += len(key['Keys'])
+            total_keys += keys_counter
+            resource_counts[region]['kms keys'] = keys_counter
+        except botocore.exceptions.ClientError:
+            continue
     resource_totals['KMS Keys'] = total_keys
 
 def dynamo_counter():
@@ -404,10 +438,13 @@ def dynamo_counter():
 
     for region in region_list:
         dynamodb = session.resource('dynamodb', region_name=region)
-        table_iterator = dynamodb.tables.all()
-        table_counter = len(list(table_iterator))
-        total_tables += table_counter
-        resource_counts[region]['dynamo tables'] = table_counter
+        try:
+            table_iterator = dynamodb.tables.all()
+            table_counter = len(list(table_iterator))
+            total_tables += table_counter
+            resource_counts[region]['dynamo tables'] = table_counter
+        except botocore.exceptions.ClientError:
+            continue
     resource_totals['Dynamo Tables'] = total_tables
 
 def rds_counter():
@@ -419,11 +456,14 @@ def rds_counter():
         rds = session.client('rds', region_name=region)
         dbinstances_counter = 0
         rds_paginator = rds.get_paginator('describe_db_instances')
-        rds_iterator = rds_paginator.paginate()
-        for instance in rds_iterator:
-            dbinstances_counter += len(instance['DBInstances'])
-        total_dbinstances += dbinstances_counter
-        resource_counts[region]['rds instances'] = dbinstances_counter
+        try:
+            rds_iterator = rds_paginator.paginate()
+            for instance in rds_iterator:
+                dbinstances_counter += len(instance['DBInstances'])
+            total_dbinstances += dbinstances_counter
+            resource_counts[region]['rds instances'] = dbinstances_counter
+        except botocore.exceptions.ClientError:
+            continue
     resource_totals['RDS Instances'] = total_dbinstances
 
 if __name__ == "__main__":
