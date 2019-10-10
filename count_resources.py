@@ -70,6 +70,7 @@ def controller(access, secret, profile):
     kms_counter()
     dynamo_counter()
     rds_counter()
+    cloudfront_counter()
 
     # show results
     click.echo('Resources by region')
@@ -425,6 +426,16 @@ def rds_counter():
         total_dbinstances += dbinstances_counter
         resource_counts[region]['rds instances'] = dbinstances_counter
     resource_totals['RDS Instances'] = total_dbinstances
+
+def cloudfront_counter():
+    cloudfront = session.client('cloudfront', region_name='us-west-2')
+    total_cfdistributions = 0
+    cfdistributions_paginator = cloudfront.get_paginator('list_distributions')
+    cfdistributions_iterator = cfdistributions_paginator.paginate()
+    for distribution in cfdistributions_iterator:
+        total_cfdistributions += len(distribution['DistributionList']['Items'])
+    resource_counts['eu-west-2']['cloudfront_distributions'] = total_cfdistributions
+    resource_totals['CloudFront Distribution'] = total_cfdistributions
 
 if __name__ == "__main__":
     controller()
