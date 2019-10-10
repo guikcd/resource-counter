@@ -73,6 +73,7 @@ def controller(access, secret, profile):
     rds_counter()
     elasticbeanstalk_counter()
     elasticbeanstalkenvs_counter()
+    cloudfront_counter()
 
     # show results
     click.echo('Resources by region')
@@ -501,6 +502,16 @@ def elasticbeanstalkenvs_counter():
         except botocore.exceptions.ClientError:
            print("botocore.exceptions.ClientError")
     resource_totals['Elasticbeanstalk Environnments'] = total_elasticbeanstalkenv
+
+def cloudfront_counter():
+    cloudfront = session.client('cloudfront', region_name='us-west-2')
+    total_cfdistributions = 0
+    cfdistributions_paginator = cloudfront.get_paginator('list_distributions')
+    cfdistributions_iterator = cfdistributions_paginator.paginate()
+    for distribution in cfdistributions_iterator:
+        total_cfdistributions += len(distribution['DistributionList']['Items'])
+    resource_counts['eu-west-2']['cloudfront_distributions'] = total_cfdistributions
+    resource_totals['CloudFront Distribution'] = total_cfdistributions
 
 if __name__ == "__main__":
     controller()
