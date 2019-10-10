@@ -1,6 +1,7 @@
 import click
 import boto3
 import sys
+import botocore
 resource_counts = {}
 resource_totals = {}
 
@@ -70,6 +71,7 @@ def controller(access, secret, profile):
     kms_counter()
     dynamo_counter()
     rds_counter()
+    sqs_counter()
 
     # show results
     click.echo('Resources by region')
@@ -425,6 +427,24 @@ def rds_counter():
         total_dbinstances += dbinstances_counter
         resource_counts[region]['rds instances'] = dbinstances_counter
     resource_totals['RDS Instances'] = total_dbinstances
+
+def sqs_counter():
+    region_list = session.get_available_regions('rds')
+
+    total_sqs = 0
+
+    for region in region_list:
+        sqs = session.client('sqs', region_name=region)
+        try:
+            sqs_iterator = sqs.list_queues()
+            sqs_counter = 0
+            if 'QueueUrls' in sqs_iterator:
+                sqs_counter = len(list(sqs_iterator['QueueUrls']))
+            total_sqs += sqs_counter
+            resource_counts[region]['sqs_queues'] = sqs_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['SQS Queues'] = total_sqs
 
 if __name__ == "__main__":
     controller()
