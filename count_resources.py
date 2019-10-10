@@ -1,6 +1,7 @@
 import click
 import boto3
 import sys
+import botocore
 resource_counts = {}
 resource_totals = {}
 
@@ -70,6 +71,7 @@ def controller(access, secret, profile):
     kms_counter()
     dynamo_counter()
     rds_counter()
+    elasticache_counter()
 
     # show results
     click.echo('Resources by region')
@@ -425,6 +427,25 @@ def rds_counter():
         total_dbinstances += dbinstances_counter
         resource_counts[region]['rds instances'] = dbinstances_counter
     resource_totals['RDS Instances'] = total_dbinstances
+
+def elasticache_counter():
+    region_list = session.get_available_regions('elasticache')
+
+    total_elasticacheinstances = 0
+
+    for region in region_list:
+        elasticache = session.client('elasticache', region_name=region)
+        elasticacheinstances_counter = 0
+        try:
+            elasticache_paginator = elasticache.get_paginator('describe_cache_clusters')
+            elasticache_iterator = elasticache_paginator.paginate()
+            for instance in elasticache_iterator:
+                elasticacheinstances_counter += len(instance['CacheClusters'])
+            total_elasticacheinstances += elasticacheinstances_counter
+            resource_counts[region]['elasticache_instances'] = elasticacheinstances_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['Elasticache cache clusters'] = total_elasticacheinstances
 
 if __name__ == "__main__":
     controller()
