@@ -75,6 +75,7 @@ def controller(access, secret, profile):
     elasticbeanstalkenvs_counter()
     cloudfront_counter()
     route53_counter()
+    elasticache_counter()
 
     # show results
     click.echo('Resources by region')
@@ -523,6 +524,25 @@ def route53_counter():
         total_r53 += len(zone['HostedZones'])
     resource_counts['eu-west-2']['route53_zones'] = total_r53
     resource_totals['Route53 Zones'] = total_r53
+
+def elasticache_counter():
+    region_list = session.get_available_regions('elasticache')
+
+    total_elasticacheinstances = 0
+
+    for region in region_list:
+        elasticache = session.client('elasticache', region_name=region)
+        elasticacheinstances_counter = 0
+        try:
+            elasticache_paginator = elasticache.get_paginator('describe_cache_clusters')
+            elasticache_iterator = elasticache_paginator.paginate()
+            for instance in elasticache_iterator:
+                elasticacheinstances_counter += len(instance['CacheClusters'])
+            total_elasticacheinstances += elasticacheinstances_counter
+            resource_counts[region]['elasticache_instances'] = elasticacheinstances_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['Elasticache cache clusters'] = total_elasticacheinstances
 
 if __name__ == "__main__":
     controller()
