@@ -74,6 +74,7 @@ def controller(access, secret, profile):
     elasticbeanstalk_counter()
     elasticbeanstalkenvs_counter()
     cloudfront_counter()
+    route53_counter()
 
     # show results
     click.echo('Resources by region')
@@ -512,6 +513,16 @@ def cloudfront_counter():
         total_cfdistributions += len(distribution['DistributionList']['Items'])
     resource_counts['eu-west-2']['cloudfront_distributions'] = total_cfdistributions
     resource_totals['CloudFront Distribution'] = total_cfdistributions
+
+def route53_counter():
+    route53 = session.client('route53', region_name='us-west-2')
+    total_r53 = 0
+    r53_paginator = route53.get_paginator('list_hosted_zones')
+    r53_iterator = r53_paginator.paginate()
+    for zone in r53_iterator:
+        total_r53 += len(zone['HostedZones'])
+    resource_counts['eu-west-2']['route53_zones'] = total_r53
+    resource_totals['Route53 Zones'] = total_r53
 
 if __name__ == "__main__":
     controller()
