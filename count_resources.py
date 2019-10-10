@@ -472,7 +472,6 @@ def rds_counter():
             continue
     resource_totals['RDS Instances'] = total_dbinstances
 
-<<<<<<< HEAD
 def elasticbeanstalk_counter():
     region_list = session.get_available_regions('elasticbeanstalk')
 
