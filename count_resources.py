@@ -478,7 +478,6 @@ def elasticbeanstalk_counter():
     total_elasticbeanstalkapp = 0
 
     for region in region_list:
-        print(region)
         elasticbeanstalk = session.client('elasticbeanstalk', region_name=region)
         try:
            elasticbeanstalk_iterator = elasticbeanstalk.describe_applications()
@@ -486,7 +485,7 @@ def elasticbeanstalk_counter():
            total_elasticbeanstalkapp += elasticbeanstalkapp_counter
            resource_counts[region]['elasticbeanstalk_applications'] = elasticbeanstalkapp_counter
         except botocore.exceptions.ClientError:
-           print("botocore.exceptions.ClientError")
+           continue
     resource_totals['Elasticbeanstalk Applications'] = total_elasticbeanstalkapp
 
 def elasticbeanstalkenvs_counter():
@@ -495,7 +494,6 @@ def elasticbeanstalkenvs_counter():
     total_elasticbeanstalkenv = 0
 
     for region in region_list:
-        print(region)
         elasticbeanstalk = session.client('elasticbeanstalk', region_name=region)
         try:
            elasticbeanstalk_iterator = elasticbeanstalk.describe_environments()
@@ -503,7 +501,7 @@ def elasticbeanstalkenvs_counter():
            total_elasticbeanstalkenv += elasticbeanstalkenv_counter
            resource_counts[region]['elasticbeanstalk_environments'] = elasticbeanstalkenv_counter
         except botocore.exceptions.ClientError:
-           print("botocore.exceptions.ClientError")
+           continue
     resource_totals['Elasticbeanstalk Environnments'] = total_elasticbeanstalkenv
 
 def cloudfront_counter():
