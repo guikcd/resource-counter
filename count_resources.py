@@ -95,7 +95,10 @@ def controller(access, secret, profile):
     # acm_count()
     # cloudformation_count()
     # efs_counter()
-    ecr_counter()
+    # ecr_counter()
+    # ecs_counter()
+    eks_counter()
+
 
     # show results
     if VERBOSE is True:
@@ -698,6 +701,46 @@ def ecr_counter():
         except botocore.exceptions.ClientError:
             continue
     resource_totals['ECR Repositories'] = total_elasticacheinstances
+
+# same as ecs
+def ecs_counter():
+    region_list = session.get_available_regions('ecs')
+
+    total_elasticacheinstances = 0
+
+    for region in region_list:
+        elasticache = session.client('ecs', region_name=region)
+        elasticacheinstances_counter = 0
+        try:
+            elasticache_paginator = elasticache.get_paginator('list_clusters')
+            elasticache_iterator = elasticache_paginator.paginate()
+            for instance in elasticache_iterator:
+                elasticacheinstances_counter += len(instance['clusterArns'])
+            total_elasticacheinstances += elasticacheinstances_counter
+            resource_counts[region]['ecs_clusters'] = elasticacheinstances_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['ECS Clusters'] = total_elasticacheinstances
+
+def eks_counter():
+    # FIXME: eks does not return any regions :/
+    region_list = session.get_available_regions('ec2')
+
+    total_elasticacheinstances = 0
+
+    for region in region_list:
+        elasticache = session.client('eks', region_name=region)
+        elasticacheinstances_counter = 0
+        try:
+            elasticache_paginator = elasticache.get_paginator('list_clusters')
+            elasticache_iterator = elasticache_paginator.paginate()
+            for instance in elasticache_iterator:
+                elasticacheinstances_counter += len(instance['clusters'])
+            total_elasticacheinstances += elasticacheinstances_counter
+            resource_counts[region]['eks_clusters'] = elasticacheinstances_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['EKS Clusters'] = total_elasticacheinstances
 
 if __name__ == "__main__":
     controller()
