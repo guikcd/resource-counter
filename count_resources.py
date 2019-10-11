@@ -545,7 +545,7 @@ def elasticache_counter():
     resource_totals['Elasticache cache clusters'] = total_elasticacheinstances
 
 def sqs_counter():
-    region_list = session.get_available_regions('rds')
+    region_list = session.get_available_regions('sqs')
 
     total_sqs = 0
 
