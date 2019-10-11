@@ -97,7 +97,8 @@ def controller(access, secret, profile):
     # efs_counter()
     # ecr_counter()
     # ecs_counter()
-    eks_counter()
+    # eks_counter()
+    waf_counter()
 
 
     # show results
@@ -741,6 +742,24 @@ def eks_counter():
         except botocore.exceptions.ClientError:
             continue
     resource_totals['EKS Clusters'] = total_elasticacheinstances
+
+
+# same as backup
+def waf_counter():
+    region_list = session.get_available_regions('waf-regional')
+
+    total_backups = 0
+
+    for region in region_list:
+        backup = session.client('waf-regional', region_name=region)
+        backup_counter = 0
+        try:
+            backup_counter += len(backup.list_rules()['Rules'])
+            total_backups += backup_counter
+            resource_counts[region]['waf_rules'] = backup_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['WAF Rules'] = total_backups
 
 if __name__ == "__main__":
     controller()
