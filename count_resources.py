@@ -77,6 +77,7 @@ def controller(access, secret, profile):
     route53_counter()
     elasticache_counter()
     sqs_counter()
+    elasticsearch_counter()
 
     # show results
     click.echo('Resources by region')
@@ -560,6 +561,23 @@ def sqs_counter():
         except botocore.exceptions.ClientError:
             continue
     resource_totals['SQS Queues'] = total_sqs
+
+def elasticsearch_counter():
+    region_list = session.get_available_regions('es')
+
+    total_esdomains = 0
+
+    for region in region_list:
+        es = session.client('es', region_name=region)
+        esdomains_counter = 0
+        try:
+            esdomains_counter += len(es.list_domain_names()['DomainNames'])
+            total_esdomains += esdomains_counter
+            resource_counts[region]['elasticsearch_domains'] = esdomains_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['Elasticsearch Domains'] = total_esdomains
+>>>>>>> elasticsearch
 
 if __name__ == "__main__":
     controller()
