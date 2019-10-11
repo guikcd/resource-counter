@@ -5,6 +5,8 @@ import botocore
 resource_counts = {}
 resource_totals = {}
 
+VERBOSE = False
+
 @click.command()
 @click.option('--access', help='AWS Access Key. Otherwise will use the standard credentials path for the AWS CLI.')
 @click.option('--secret', help='AWS Secret Key')
@@ -12,37 +14,47 @@ resource_totals = {}
 def controller(access, secret, profile):
     global session
     if access:
-        click.echo('Access Key specified')
+        if VERBOSE is True:
+            click.echo('Access Key specified')
         if not secret:
-            click.echo('Secret key not specified. A secret key must be provided when the command line access key option is provided.')
+            if VERBOSE is True:
+                click.echo('Secret key not specified. A secret key must be provided when the command line access key option is provided.')
         else:
-            click.echo('Establishing AWS session using the provided access key...')
+            if VERBOSE is True:
+                click.echo('Establishing AWS session using the provided access key...')
             try:
                 session = boto3.session.Session(aws_access_key_id=access, aws_secret_access_key=secret)
             except:
-                click.echo('Error establishing AWS connection. Likely bad credentials provided.')
+                if VERBOSE is True:
+                    click.echo('Error establishing AWS connection. Likely bad credentials provided.')
                 sys.exit()
     elif profile:
-        click.echo('Establishing AWS session using the profile- ' + profile)
+        if VERBOSE is True:
+            click.echo('Establishing AWS session using the profile- ' + profile)
         try:
             session = boto3.session.Session(profile_name=profile)
         except:
-            click.echo('Error establishing AWS connection. Likely bad credentials provided.')
+            if VERBOSE is True:
+                click.echo('Error establishing AWS connection. Likely bad credentials provided.')
             sys.exit()
     else:
-        click.echo('Establishing AWS session using default path credentials...')
+        if VERBOSE is True:
+            click.echo('Establishing AWS session using default path credentials...')
         try:
             session = boto3.session.Session()
         except:
-            click.echo('Error establishing AWS connection. Likely bad credentials provided.')
+            if VERBOSE is True:
+                click.echo('Error establishing AWS connection. Likely bad credentials provided.')
             sys.exit()
+
 
     # pull the account ID for use when needed for filtering
     iam = session.client('sts')
 
     # account_id = iam.CurrentUser().arn.split(':')[4]
     account_id = iam.get_caller_identity()["Account"]
-    click.echo('Current account ID: ' + account_id)
+    if VERBOSE is True:
+        click.echo('Current account ID: ' + account_id)
 
     # Initialize dictionary to hold the counts. Pull the regions using EC2, since that is in every region.
     # Then build out the master list of regions to then fill in the service counts
@@ -55,40 +67,50 @@ def controller(access, secret, profile):
 
 
     # iterate through the various services to build the counts
-    click.echo('Counting resources across regions. This will take a few minutes...')
-    click.echo(' ')
-    ec2_counter(account_id)
-    autoscaling_counter()
-    balancer_counter()
-    s3_counter()
-    iam_counter()
-    lambda_counter()
-    glacier_counter()
-    cloudwatch_rules_counter()
-    config_counter()
-    cloudtrail_counter()
-    sns_counter()
-    kms_counter()
-    dynamo_counter()
-    rds_counter()
-    elasticbeanstalk_counter()
-    elasticbeanstalkenvs_counter()
-    cloudfront_counter()
-    route53_counter()
-    elasticache_counter()
-    sqs_counter()
-    elasticsearch_counter()
+    if VERBOSE is True:
+        click.echo('Counting resources across regions. This will take a few minutes...')
+        click.echo(' ')
+    # ec2_counter(account_id)
+    # autoscaling_counter()
+    # balancer_counter()
+    # s3_counter()
+    # iam_counter()
+    # lambda_counter()
+    # glacier_counter()
+    # cloudwatch_rules_counter()
+    # config_counter()
+    # cloudtrail_counter()
+    # sns_counter()
+    # kms_counter()
+    # dynamo_counter()
+    # rds_counter()
+    # elasticbeanstalk_counter()
+    # elasticbeanstalkenvs_counter()
+    # cloudfront_counter()
+    # route53_counter()
+    # elasticache_counter()
+    # sqs_counter()
+    # elasticsearch_counter()
+    # backup_count()
+    # acm_count()
+    #cloudformation_count()
 
     # show results
-    click.echo('Resources by region')
+    if VERBOSE is True:
+        click.echo('Resources by region')
+
     click.echo(resource_counts)
-    click.echo(' ')
-    click.echo('Resource totals across all regions')
-    for key, value in sorted(resource_totals.items()):
-        click.echo("{} : {}".format(key, value))
-    total = sum(resource_totals.values())
-    click.echo('')
-    click.echo('Total resources: ' + str(total))
+
+    if VERBOSE is True:
+        click.echo(' ')
+        click.echo('Resource totals across all regions')
+        for key, value in sorted(resource_totals.items()):
+            click.echo("{} : {}".format(key, value))
+
+    if VERBOSE is True:
+        total = sum(resource_totals.values())
+        click.echo('')
+        click.echo('Total resources: ' + str(total))
 
 # ec2 = boto3.client('ec2', region_name='us-west-2')
 
@@ -577,7 +599,62 @@ def elasticsearch_counter():
         except botocore.exceptions.ClientError:
             continue
     resource_totals['Elasticsearch Domains'] = total_esdomains
->>>>>>> elasticsearch
+
+def backup_count():
+    region_list = session.get_available_regions('backup')
+
+    total_backups = 0
+
+    for region in region_list:
+        backup = session.client('backup', region_name=region)
+        backup_counter = 0
+        try:
+            backup_counter += len(backup.list_backup_vaults()['BackupVaultList'])
+            total_backups += backup_counter
+            resource_counts[region]['backup_vaults'] = backup_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['Backup Vaults'] = total_backups
+
+# same as elasticache/rds
+def acm_count():
+    region_list = session.get_available_regions('acm')
+
+    total = 0
+
+    for region in region_list:
+        elasticache = session.client('acm', region_name=region)
+        elasticacheinstances_counter = 0
+        try:
+            elasticache_paginator = elasticache.get_paginator('list_certificates')
+            elasticache_iterator = elasticache_paginator.paginate()
+            for instance in elasticache_iterator:
+                elasticacheinstances_counter += len(instance['CertificateSummaryList'])
+            total += elasticacheinstances_counter
+            resource_counts[region]['acm_certificates'] = elasticacheinstances_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['ACM Certificates'] = total
+
+def cloudformation_count():
+    region_list = session.get_available_regions('cloudformation')
+
+    total = 0
+
+    for region in region_list:
+        elasticache = session.client('cloudformation', region_name=region)
+        elasticacheinstances_counter = 0
+        try:
+            elasticache_paginator = elasticache.get_paginator('list_stacks')
+            # don't fetch DELETE_COMPLETE stacks
+            elasticache_iterator = elasticache_paginator.paginate(StackStatusFilter=['CREATE_IN_PROGRESS','CREATE_FAILED','CREATE_COMPLETE','UPDATE_IN_PROGRESS','UPDATE_COMPLETE_CLEANUP_IN_PROGRESS','UPDATE_COMPLETE','UPDATE_ROLLBACK_IN_PROGRESS','UPDATE_ROLLBACK_FAILED','UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS','UPDATE_ROLLBACK_COMPLETE'])
+            for instance in elasticache_iterator:
+                elasticacheinstances_counter += len(instance['StackSummaries'])
+            total += elasticacheinstances_counter
+            resource_counts[region]['cloudformation_stacks'] = elasticacheinstances_counter
+        except botocore.exceptions.ClientError:
+            continue
+    resource_totals['CloudFormation stacks'] = total
 
 if __name__ == "__main__":
     controller()
